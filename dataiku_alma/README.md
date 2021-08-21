@@ -13,6 +13,16 @@ The terminal should spit out a localhost link where you can open the webapp.
 
 The actual webapp used in production is the dss file, which additionally allows selection from 800 UIDs and relies partly on postgresql queries as the production dataset of >10GB is too large for pandas. Once the UID has been selected via SQL, however, it shrinks down to a couple thousand rows doable with pandas.
 
+#### References
+
+
+- https://dash-gallery.plotly.host/dash-medical-provider-charges/
+- https://github.com/plotly/dash-sample-apps/blob/main/apps/dash-medical-provider-charges/app.py
+- https://dash-gallery.plotly.host/dashr-svm/
+- https://github.com/plotly/dash-sample-apps/tree/main/apps/dash-svm
+    - Code also in parent folder
+- https://www.postgresql.org/docs/8.3/tutorial-join.html
+
 
 #### Basic glossary
 
