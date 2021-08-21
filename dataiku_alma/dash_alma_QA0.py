@@ -216,7 +216,7 @@ def about_layout():
             html.H4("About"),
             html.P(
                 [
-                    """Combine different datapoints from the left-hand panel. You can use the graph featurs to zoom in, save a snapshot & sub-select. If you sub-select using the Lasso or Box selection tools on the upper-graph, the lower graph will zoom in if they graph the same y-axis. To un-select double-click the selection.""",
+                    """Combine different datapoints from the left-hand panel. You can use the graph featurs to zoom in, save a snapshot & sub-select. If you sub-select using the Lasso or Box selection tools on the upper-graph, the lower graph will zoom in if they graph the same y-axis. To un-select double-click the selection. If you changed the UID without un-selecting, just re-select and un-select to reset the lower graph.""",
                     html.Br(),
                     """Made with ❤️ for ALMA & Astrophysics - Niklas Muennighoff.""",
                 ]

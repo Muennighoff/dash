@@ -1,0 +1,35 @@
+/*A huge table join on 30M Rows I performed, to get a final dataset for the webapp!*/
+SELECT 
+toad_mock_calatmosphere_summary_for_dash.uid, 
+toad_mock_calatmosphere_summary_for_dash.antennaname,
+toad_mock_calatmosphere_summary_for_dash.basebandname,
+toad_mock_calatmosphere_summary_for_dash.caldataid,
+toad_mock_calatmosphere_summary_for_dash.receiverband,
+toad_mock_calatmosphere_summary_for_dash.day,
+toad_mock_calatmosphere_summary_for_dash.startvalidtime,
+toad_mock_calatmosphere_summary_for_dash.tatm_x,
+toad_mock_calatmosphere_summary_for_dash.tatm_y,
+toad_mock_calatmosphere_summary_for_dash.trec_x,
+toad_mock_calatmosphere_summary_for_dash.trec_y,
+toad_mock_calatmosphere_summary_for_dash.tsys_x,
+toad_mock_calatmosphere_summary_for_dash.tsys_y,
+toad_mock_calatmosphere_summary_for_dash.tau,
+toad_mock_calatmosphere_summary_for_dash.water,
+toad_mock_calatmosphere_summary_for_dash.is_outlier,
+toad_mock_calatmosphere_summary_for_dash.frequency_min,
+toad_mock_calatmosphere_summary_for_dash.frequency_mid,
+toad_mock_calatmosphere_summary_for_dash.frequency_max,
+cal_atmosphere_raw_sci.trecspectrum_x,
+cal_atmosphere_raw_sci.trecspectrum_y,
+cal_atmosphere_raw_sci.tsysspectrum_x,
+cal_atmosphere_raw_sci.tsysspectrum_y,
+cal_atmosphere_raw_sci.frequencyspectrum
+FROM (toad_mock_calatmosphere_summary_for_dash
+INNER JOIN cal_atmosphere_raw_sci 
+ON toad_mock_calatmosphere_summary_for_dash.uid = cal_atmosphere_raw_sci.uid
+AND toad_mock_calatmosphere_summary_for_dash.antennaname = cal_atmosphere_raw_sci.antennaname
+AND toad_mock_calatmosphere_summary_for_dash.basebandname = cal_atmosphere_raw_sci.basebandname
+AND toad_mock_calatmosphere_summary_for_dash.caldataid = cal_atmosphere_raw_sci.caldataid
+AND toad_mock_calatmosphere_summary_for_dash.receiverband = cal_atmosphere_raw_sci.receiverband
+AND CAST(toad_mock_calatmosphere_summary_for_dash.day AS text) = CAST(cal_atmosphere_raw_sci.day AS text))
+/*LIMIT 10*/

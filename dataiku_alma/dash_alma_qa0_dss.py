@@ -10,24 +10,42 @@ import plotly.graph_objs as go
 import numpy as np
 import pandas as pd
 
-import dataiku
+from dataiku import SQLExecutor2
 
 import utils.dash_reusable_components as drc
 
-### Dataiku specific ###
-app.config.external_stylesheets = [
-    "https://muennighoff.github.io/csstemplates/base-styles.css",
-    "https://muennighoff.github.io/csstemplates/custom-styles.css",
-]
-
 ### DEFINITIONS ###
 
-# Using a single DataFrame saves memory
-data = dataiku.Dataset("niklasexp")
-df = data.get_dataframe()
+# The app is pre-initialized in Dataiku DSS
+app.config.external_stylesheets = [
+    "https://muennighoff.github.io/csstemplates/alma/base-styles.css",
+    "https://muennighoff.github.io/csstemplates/alma/custom-styles.css",
+]
 
-# Via SQL on entire table in actual application
-uid_options = [{"label": i.strip("uid://"), "value": i} for i in df["uid"].unique().tolist()]
+EXECUTOR = SQLExecutor2(dataset="raw_cal_joined")
+
+DATASET_NAME = "TRENDANALYSISANDOUTLIERDETECTION_raw_cal_joined"
+
+# SQL Queries
+# Qotes needed due to caps
+unique_uid_query = """
+SELECT DISTINCT uid
+FROM "%s"
+ORDER BY uid DESC
+"""
+
+# Somehow uid needs single quotes
+uid_subset_query = """
+SELECT *
+FROM "%s"
+WHERE uid = '%s'
+"""
+
+# Get all possible UIDs from table
+uid_options = [
+    {"label": i.strip("uid://"), "value": i}
+    for i in EXECUTOR.query_to_df(unique_uid_query % (DATASET_NAME)).uid.values.tolist()
+]
 
 summary_graph_options = [
     {
@@ -220,7 +238,7 @@ def about_layout():
             html.H4("About"),
             html.P(
                 [
-                    """Combine different datapoints from the left-hand panel. You can use the graph featurs to zoom in, save a snapshot & sub-select. If you sub-select using the Lasso or Box selection tools on the upper-graph, the lower graph will zoom in if they graph the same y-axis. To un-select double-click the selection.""",
+                    """Combine different datapoints from the left-hand panel. You can use the graph featurs to zoom in, save a snapshot & sub-select. If you sub-select using the Lasso or Box selection tools on the upper-graph, the lower graph will zoom in if they graph the same y-axis. To un-select double-click the selection. If you changed the UID without un-selecting, just re-select and un-select to reset the lower graph.""",
                     html.Br(),
                     """Made with ❤️ for ALMA & Astrophysics - Niklas Muennighoff.""",
                 ]
@@ -248,7 +266,7 @@ def full_layout():
                                 },
                             ),
                             html.Img(
-                                src="https://muennighoff.github.io/csstemplates/alma-logo.jpg",
+                                src="https://muennighoff.github.io/csstemplates/alma/alma-logo.jpg",
                                 style={
                                     "height": "5%",
                                     "width": "5%",
@@ -299,6 +317,9 @@ app.layout = full_layout()
 def update_antenna_dropdown(uid, antenna_select_all):
     """Update the antennas available in the dropdown"""
 
+    # Get df of currently selected UID
+    df = EXECUTOR.query_to_df(uid_subset_query % (DATASET_NAME, uid))
+
     antennas = df.loc[df.uid == uid, "antennaname"].unique().tolist()
     options = [{"label": i, "value": i} for i in antennas]
 
@@ -333,6 +354,9 @@ def update_antenna_dropdown(uid, antenna_select_all):
 )
 def update_baseband_dropdown(uid, antennas, baseband_select_all):
     """Update the basebands available in the dropdown"""
+
+    # Get df of currently selected UID
+    df = EXECUTOR.query_to_df(uid_subset_query % (DATASET_NAME, uid))
 
     basebands = (
         df.loc[(df.uid == uid) & (df.antennaname.isin(antennas)), "basebandname"].unique().tolist()
@@ -372,6 +396,9 @@ def update_baseband_dropdown(uid, antennas, baseband_select_all):
 )
 def update_scan_dropdown(uid, antennas, basebands, scan_select_all):
     """Update the Scans available in the dropdown"""
+
+    # Get df of currently selected UID
+    df = EXECUTOR.query_to_df(uid_subset_query % (DATASET_NAME, uid))
 
     # Note that scans == caldataid ~= startvalidtime
     scans = (
@@ -424,6 +451,10 @@ def update_summary_graph(
     graph_type,
 ):
     """Creates facet graph based on UID, Antenna & BBand selection"""
+
+    # Get df of currently selected UID
+    df = EXECUTOR.query_to_df(uid_subset_query % (DATASET_NAME, uid))
+
     graph_df = df.loc[
         (df.uid == uid) & (df.antennaname.isin(antennas)) & (df.basebandname.isin(basebands))
     ]
@@ -492,6 +523,9 @@ def update_spectrum_graph(
     summary_graph_type,
 ):
     """Creates scatter plot based on UID, Antenna, BBand, Scan & Summary graph selection"""
+
+    # Get df of currently selected UID
+    df = EXECUTOR.query_to_df(uid_subset_query % (DATASET_NAME, uid))
 
     cols = graph_type.split(",")
     x, y = cols[0], cols[1:]
