@@ -11,7 +11,7 @@ python dash_alma_qa0.py
 ```
 The terminal should spit out a localhost link where you can open the webapp.
 
-The actual webapp used in production is the dss file, which additionally allows selection from 800 UIDs and relies partly on postgresql queries as the production is too large for pandas.
+The actual webapp used in production is the dss file, which additionally allows selection from 800 UIDs and relies partly on postgresql queries as the production dataset of >10GB is too large for pandas. Once the UID has been selected via SQL, however, it shrinks down to a couple thousand rows doable with pandas.
 
 
 #### Basic glossary
