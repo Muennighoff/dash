@@ -10,17 +10,21 @@ import plotly.graph_objs as go
 import numpy as np
 import pandas as pd
 
+import dataiku
+
 import utils.dash_reusable_components as drc
 
-# In Dataiku DSS added the stylesheets to github
-# See https://community.dataiku.com/t5/Using-Dataiku-DSS/Pass-argument-to-Dash-object/m-p/14853
-app = dash.Dash(__name__)
+### Dataiku specific ###
+app.config.external_stylesheets = [
+    "https://muennighoff.github.io/csstemplates/base-styles.css",
+    "https://muennighoff.github.io/csstemplates/custom-styles.css",
+]
 
 ### DEFINITIONS ###
 
 # Using a single DataFrame saves memory
-# Get DF via SQL from database in actual application
-df = pd.read_csv("dataiku_alma/ALMA_Xf27c.csv")
+data = dataiku.Dataset("niklasexp")
+df = data.get_dataframe()
 
 # Via SQL on entire table in actual application
 uid_options = [{"label": i.strip("uid://"), "value": i} for i in df["uid"].unique().tolist()]
@@ -244,7 +248,7 @@ def full_layout():
                                 },
                             ),
                             html.Img(
-                                src=app.get_asset_url("alma-logo.jpg"),
+                                src="https://muennighoff.github.io/csstemplates/alma-logo.jpg",
                                 style={
                                     "height": "5%",
                                     "width": "5%",
@@ -520,9 +524,9 @@ def update_spectrum_graph(
 
     graph_df = graph_df[cols].applymap(lambda arr: np.array(arr.split(",")[5:-5]).astype(float))
 
-    graph_df = graph_df.explode(cols)
+    # graph_df = graph_df.explode(cols)
     # For older pandas versions, we must explode each column individually (DSS is still using an older pandas)
-    # graph_df = pd.DataFrame({col: graph_df[[col]].explode(col).squeeze() for col in cols})
+    graph_df = pd.DataFrame({col: graph_df[[col]].explode(col).squeeze() for col in cols})
 
     # Turn into GHz
     if x == "frequencyspectrum":
@@ -543,7 +547,3 @@ def update_spectrum_graph(
     fig.update_yaxes(showgrid=True, rangemode="tozero", gridwidth=1, gridcolor="White")
 
     return fig
-
-
-if __name__ == "__main__":
-    app.run_server(debug=True)
