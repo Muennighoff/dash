@@ -23,7 +23,7 @@ app = dash.Dash(__name__)
 df = pd.read_csv("dataiku_alma/ALMA_Xf27c.csv")
 
 # Via SQL on entire table in actual application
-uid_options = [{"label": i.strip("uid://"), "value": i} for i in df["uid"].unique().tolist()]
+min_date, max_date = df.startvalidtime.min(), df.startvalidtime.max()
 
 summary_graph_options = [
     {
@@ -79,17 +79,38 @@ def panel_layout():
             drc.Card(
                 id="first-card",
                 children=[
+                    ### DATE ###
+                    html.Div(
+                        id="date-select-outer",
+                        className="control-row-2",
+                        style={"margin": "10px 0px"},
+                        children=[
+                            html.Label(
+                                "Select Date Range",
+                                style={"margin-left": "3px"},
+                            ),
+                            html.Div(
+                                id="date-container",
+                                children=[
+                                    dcc.DatePickerRange(
+                                        id="date-picker-range",
+                                        min_date_allowed=min_date,
+                                        max_date_allowed=max_date,
+                                        start_date=max_date,
+                                        end_date=max_date,
+                                    )
+                                ],
+                            ),
+                        ],
+                    ),
                     ### UID ###
                     drc.NamedDropdown(
                         name="Select Observation UID",
                         id="dropdown-select-uid",
-                        options=uid_options,
                         clearable=False,
                         searchable=False,
-                        value=uid_options[0]["value"],
                     ),
                     ### ANTENNAS ###
-                    # TODO: Possibly add this component to drc
                     html.Div(
                         id="antenna-select-outer",
                         className="control-row-2",
@@ -280,6 +301,32 @@ app.layout = full_layout()
 
 
 ### Panel callbacks ###
+
+
+@app.callback(
+    [
+        Output("dropdown-select-uid", "value"),
+        Output("dropdown-select-uid", "options"),
+    ],
+    [
+        Input("date-picker-range", "start_date"),
+        Input("date-picker-range", "end_date"),
+    ],
+)
+def update_uid_dropdown(start_date, end_date):
+    """Update the UIDs available in the dropdown based on date range"""
+
+    uids = (
+        df.loc[(df.startvalidtime >= start_date) & (df.startvalidtime <= end_date), "uid"]
+        .unique()
+        .tolist()
+    )
+    options = [{"label": i.strip("uid://"), "value": i} for i in uids]
+
+    return (
+        options[-1]["value"],
+        options,
+    )
 
 
 @app.callback(

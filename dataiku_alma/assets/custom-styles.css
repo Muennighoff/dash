@@ -147,6 +147,15 @@
     padding: 2rem 0;
 }
 
+.DateInput_input, .DateInput_input_1 {
+    color: #a5b1cd;
+}
+
+.DateRangePickerInput {
+    background-color: #2f3445;
+    border-color: #2f3445;
+}
+
 #last-card {
     border-bottom: none;
 }

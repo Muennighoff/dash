@@ -27,25 +27,39 @@ EXECUTOR = SQLExecutor2(dataset="raw_cal_joined")
 DATASET_NAME = "TRENDANALYSISANDOUTLIERDETECTION_raw_cal_joined"
 
 # SQL Queries
-# Qotes needed due to caps
+# Quotes needed due to caps
 unique_uid_query = """
 SELECT DISTINCT uid
 FROM "%s"
 ORDER BY uid DESC
 """
 
-# Somehow uid needs single quotes
+# Somehow WHERE needs single quotes
 uid_subset_query = """
 SELECT *
 FROM "%s"
 WHERE uid = '%s'
 """
 
-# Get all possible UIDs from table
-uid_options = [
-    {"label": i.strip("uid://"), "value": i}
-    for i in EXECUTOR.query_to_df(unique_uid_query % (DATASET_NAME)).uid.values.tolist()
-]
+min_date_query = """
+SELECT MIN(startvalidtime)
+FROM "%s"
+"""
+
+max_date_query = """
+SELECT MAX(startvalidtime)
+FROM "%s"
+"""
+
+filter_date_query = """
+SELECT DISTINCT uid
+FROM "%s"
+WHERE startvalidtime >= '%s' AND startvalidtime <= '%s'
+"""
+
+# Get min & max possible date
+min_date = EXECUTOR.query_to_df(min_date_query % (DATASET_NAME)).values.tolist()[0][0]
+max_date = EXECUTOR.query_to_df(max_date_query % (DATASET_NAME)).values.tolist()[0][0]
 
 summary_graph_options = [
     {
@@ -101,17 +115,38 @@ def panel_layout():
             drc.Card(
                 id="first-card",
                 children=[
+                    ### DATE ###
+                    html.Div(
+                        id="date-select-outer",
+                        className="control-row-2",
+                        style={"margin": "10px 0px"},
+                        children=[
+                            html.Label(
+                                "Select Date Range",
+                                style={"margin-left": "3px"},
+                            ),
+                            html.Div(
+                                id="date-container",
+                                children=[
+                                    dcc.DatePickerRange(
+                                        id="date-picker-range",
+                                        min_date_allowed=min_date,
+                                        max_date_allowed=max_date,
+                                        start_date=max_date,
+                                        end_date=max_date,
+                                    )
+                                ],
+                            ),
+                        ],
+                    ),
                     ### UID ###
                     drc.NamedDropdown(
                         name="Select Observation UID",
                         id="dropdown-select-uid",
-                        options=uid_options,
                         clearable=False,
                         searchable=False,
-                        value=uid_options[0]["value"],
                     ),
                     ### ANTENNAS ###
-                    # TODO: Possibly add this component to drc
                     html.Div(
                         id="antenna-select-outer",
                         className="control-row-2",
@@ -306,6 +341,36 @@ app.layout = full_layout()
 
 @app.callback(
     [
+        Output("dropdown-select-uid", "value"),
+        Output("dropdown-select-uid", "options"),
+    ],
+    [
+        Input("date-picker-range", "start_date"),
+        Input("date-picker-range", "end_date"),
+    ],
+)
+def update_uid_dropdown(start_date, end_date):
+    """Update the UIDs available in the dropdown based on date range"""
+
+    # Get df of selected dates
+    uids = (
+        EXECUTOR.query_to_df(filter_date_query % (DATASET_NAME, start_date, end_date))
+        .uid.unique()
+        .tolist()
+    )
+
+    print("UIDS", uids)
+
+    options = [{"label": i.strip("uid://"), "value": i} for i in uids]
+
+    return (
+        options[-1]["value"],
+        options,
+    )
+
+
+@app.callback(
+    [
         Output("antenna-select", "value"),
         Output("antenna-select", "options"),
     ],
@@ -495,6 +560,8 @@ def update_summary_graph(
 
     # Make it transparent
     fig.update_layout(transparent_layout)
+    # Set box-select to be the default tool
+    fig.update_layout(dragmode="select")
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="White")
     fig.update_yaxes(showgrid=True, rangemode="tozero", gridwidth=1, gridcolor="White")
 
