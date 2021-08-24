@@ -97,7 +97,7 @@ graph_labels = {
     "tsys_x,tsys_y": "Temperature",
     "water": "Water",
     "tatm_x,tatm_y": "Temperature",
-    "tau": "Tau",  # TODO: Is this a shortcut?
+    "tau": "Tau",
     "frequencyspectrum": "Frequency Spectrum (GHz)",
 }
 
@@ -358,8 +358,6 @@ def update_uid_dropdown(start_date, end_date):
         .uid.unique()
         .tolist()
     )
-
-    print("UIDS", uids)
 
     options = [{"label": i.strip("uid://"), "value": i} for i in uids]
 

@@ -61,7 +61,7 @@ graph_labels = {
     "tsys_x,tsys_y": "Temperature",
     "water": "Water",
     "tatm_x,tatm_y": "Temperature",
-    "tau": "Tau",  # TODO: Is this a shortcut?
+    "tau": "Tau",
     "frequencyspectrum": "Frequency Spectrum (GHz)",
 }
 
