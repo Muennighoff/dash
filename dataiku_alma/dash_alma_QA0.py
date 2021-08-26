@@ -25,7 +25,7 @@ df = pd.read_csv("dataiku_alma/ALMA_Xf27c.csv")
 # Via SQL on entire table in actual application
 min_date, max_date = df.startvalidtime.min(), df.startvalidtime.max()
 
-summary_graph_options = [
+SUMMARY_GRAPH_OPTIONS = [
     {
         "label": "Scan vs Receiver Temperature X/Y",
         "value": "startvalidtime,trec_x,trec_y",
@@ -38,18 +38,16 @@ summary_graph_options = [
     {"label": "System Temp. X vs System Temp. Y", "value": "tsys_x,tsys_y"},
 ]
 
-spectrum_graph_options = [
-    {
-        "label": "Frequency Spectrum vs Receiver Temperature X/Y",
-        "value": "frequencyspectrum,trecspectrum_x,trecspectrum_y",
-    },
-    {
-        "label": "Frequency Spectrum vs System Temperature X/Y",
-        "value": "frequencyspectrum,tsysspectrum_x,tsysspectrum_y",
-    },
-]
 
-graph_labels = {
+SUMMARY_SPECTRUM_MAP = {
+    "trec_x": "trecspectrum_x",
+    "trec_y": "trecspectrum_y",
+    "tsys_x": "tsysspectrum_x",
+    "tsys_y": "tsysspectrum_y",
+}
+
+
+GRAPH_LABELS = {
     "startvalidtime": "Scan Timestamp",
     "antennaname": "Antenna",
     "basebandname": "BaseBand",
@@ -164,10 +162,10 @@ def panel_layout():
                     drc.NamedDropdown(
                         name="Select Summary Graph",
                         id="dropdown-select-summary-graph",
-                        options=summary_graph_options,
+                        options=SUMMARY_GRAPH_OPTIONS,
                         clearable=False,
                         searchable=False,
-                        value=summary_graph_options[0]["value"],
+                        value=SUMMARY_GRAPH_OPTIONS[0]["value"],
                     ),
                     ### SCAN ###
                     html.Div(
@@ -194,14 +192,13 @@ def panel_layout():
                             ),
                         ],
                     ),
-                    ### SPECTRUM GRAPH TYPE ###
-                    drc.NamedDropdown(
-                        name="Select Spectrum Graph",
-                        id="dropdown-select-spectrum-graph",
-                        options=spectrum_graph_options,
-                        clearable=False,
-                        searchable=False,
-                        value=spectrum_graph_options[0]["value"],
+                    ### DOWNLOAD BUTTON ###
+                    html.Div(
+                        style={"margin": "40px 0px"},
+                        children=[
+                            html.Button("Download CSV", id="btn", style={"color": "lightblue"}),
+                            dcc.Download(id="download"),
+                        ],
                     ),
                 ],
             ),
@@ -218,12 +215,28 @@ def graph_layout():
                 className="graph-wrapper",
                 children=dcc.Graph(
                     id="summary-graph",
+                    config={
+                        "modeBarButtonsToAdd": [
+                            "drawline",
+                            "drawopenpath",
+                            "drawrect",
+                            "eraseshape",
+                        ]
+                    },
                 ),
             ),
             dcc.Loading(
                 className="graph-wrapper",
                 children=dcc.Graph(
                     id="spectrum-graph",
+                    config={
+                        "modeBarButtonsToAdd": [
+                            "drawline",
+                            "drawopenpath",
+                            "drawrect",
+                            "eraseshape",
+                        ]
+                    },
                 ),
             ),
         ],
@@ -237,7 +250,7 @@ def about_layout():
             html.H4("About"),
             html.P(
                 [
-                    """Combine different datapoints from the left-hand panel. You can use the graph featurs to zoom in, save a snapshot & sub-select. If you sub-select using the Lasso or Box selection tools on the upper-graph, the lower graph will zoom in if they graph the same y-axis. To un-select double-click the selection. If you changed the UID without un-selecting, just re-select and un-select to reset the lower graph.""",
+                    """Combine different datapoints from the left-hand panel. You can use the graph features to zoom in, save a snapshot, draw forms & sub-select. If you sub-select using the Lasso or Box selection tools on the upper-graph, the lower graph will zoom in if they graph the same y-axis. To un-select double-click the selection. If you changed the UID without un-selecting, just re-select and un-select to reset the lower graph. To export your project, we recommend to scroll to the top of the left-hand panel, print your screen as PDF selecting Layout: Landscape, Scale: Customised (50%). When sharing insights via e.g. a graph png, it is recommended to also download a data snapshot.""",
                     html.Br(),
                     """Made with ❤️ for ALMA & Astrophysics - Niklas Muennighoff.""",
                 ]
@@ -411,20 +424,28 @@ def update_baseband_dropdown(uid, antennas, baseband_select_all):
         Input("antenna-select", "value"),
         Input("baseband-select", "value"),
         Input("scan-select-all", "value"),
+        Input("summary-graph", "selectedData"),
     ],
 )
-def update_scan_dropdown(uid, antennas, basebands, scan_select_all):
+def update_scan_dropdown(uid, antennas, basebands, scan_select_all, summary_selected):
     """Update the Scans available in the dropdown"""
 
-    # Note that scans == caldataid ~= startvalidtime
-    scans = (
-        df.loc[
-            (df.uid == uid) & (df.antennaname.isin(antennas)) & (df.basebandname.isin(basebands)),
-            "caldataid",
-        ]
-        .unique()
-        .tolist()
-    )
+    # If rectangle/lasso select has been used to select points from the upper graph, subselect
+    if summary_selected:
+        # caldataid is the last custom data we present (via hover in the summary graph)
+        scans = set(sub_dict["customdata"][-1] for sub_dict in summary_selected["points"])
+    else:
+        # Note that scans == caldataid ~= startvalidtime
+        scans = (
+            df.loc[
+                (df.uid == uid)
+                & (df.antennaname.isin(antennas))
+                & (df.basebandname.isin(basebands)),
+                "caldataid",
+            ]
+            .unique()
+            .tolist()
+        )
 
     options = [{"label": i, "value": i} for i in scans]
 
@@ -436,6 +457,8 @@ def update_scan_dropdown(uid, antennas, basebands, scan_select_all):
             value = [i["value"] for i in options]
         else:
             value = dash.no_update
+    elif ctx.triggered[0]["prop_id"].split(".")[0] == "summary-graph":
+        value = [i["value"] for i in options]
     # Otherwise it can only be due to a change in UID/Antenna - In that case also select the first by default
     else:
         value = [i["value"] for i in options[:1]]
@@ -448,7 +471,9 @@ def update_scan_dropdown(uid, antennas, basebands, scan_select_all):
 
 ### Graph callbacks ###
 
-transparent_layout = go.Layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+# transparent_layout = go.Layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+# Select Layout with the same color as background to have background when exporting
+transparent_layout = go.Layout(paper_bgcolor="rgba(41,43,56,1)", plot_bgcolor="rgba(41,43,56,1)")
 
 
 @app.callback(
@@ -480,17 +505,17 @@ def update_summary_graph(
 
     x, y = graph_type.split(",")[0], graph_type.split(",")[1:]
     # X/Y dependent labels:
-    value_label = graph_labels.get(",".join(y), "Unknown")
+    value_label = GRAPH_LABELS.get(",".join(y), "Unknown")
     var_label = "Polarization" if value_label == "Temperature" else "Variable"
     add_labels = {"value": value_label, "variable": var_label}
 
     fig = px.scatter(
         graph_df,
         x=x,
-        y=y,  # TODO: Let user select
+        y=y,
         facet_col="basebandname",
         facet_col_wrap=2,
-        labels={**add_labels, **graph_labels},
+        labels={**add_labels, **GRAPH_LABELS},
         render_mode="webgl",
         hover_name="antennaname",
         hover_data={
@@ -505,8 +530,10 @@ def update_summary_graph(
 
     fig.update_yaxes(rangemode="tozero")
 
-    # Make it transparent
-    fig.update_layout(transparent_layout)
+    # Make it transparent, drawings via the drawing tool in cyan & box-select as default tool
+    fig.update_layout(
+        transparent_layout, newshape=dict(line=dict(color="cyan", width=5)), dragmode="select"
+    )
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="White")
     fig.update_yaxes(showgrid=True, rangemode="tozero", gridwidth=1, gridcolor="White")
 
@@ -521,9 +548,8 @@ def update_summary_graph(
         Input("baseband-select", "value"),
         Input("scan-select", "value"),
         Input("summary-graph", "selectedData"),
-        Input("dropdown-select-spectrum-graph", "value"),
+        Input("dropdown-select-summary-graph", "value"),
     ],
-    State("dropdown-select-summary-graph", "value"),
 )
 def update_spectrum_graph(
     uid,
@@ -531,45 +557,58 @@ def update_spectrum_graph(
     basebands,
     scans,
     summary_selected,
-    graph_type,
     summary_graph_type,
 ):
     """Creates scatter plot based on UID, Antenna, BBand, Scan & Summary graph selection"""
 
-    cols = graph_type.split(",")
-    x, y = cols[0], cols[1:]
+    # Get X Variable
+    x = "frequencyspectrum"
+    # Get Y Variable(s)
+    y_summary = summary_graph_type.split(",")[1:]
+    # Check if valid selection for plotting lower graph
+    if not (set(y_summary) <= set(SUMMARY_SPECTRUM_MAP.keys())):
+        return {
+            "data": [],
+            "layout": transparent_layout,
+        }
 
+    y_spectrum = [SUMMARY_SPECTRUM_MAP[y_str] for y_str in y_summary]
+
+    # Drop the index so lateron no pandas copy warning is raised
     graph_df = df.loc[
         (df.uid == uid)
         & (df.antennaname.isin(antennas))
         & (df.basebandname.isin(basebands))
         & (df.caldataid.isin(scans))
+    ].reset_index(drop=True)
+
+    explode_cols = [x] + y_spectrum
+    add_cols = [
+        "antennaname",
+        "basebandname",
+        "caldataid",
     ]
 
     # If rectangle/lasso select has been used to select points from the upper graph, subselect
     if summary_selected:
-        # Get y-axis of the summary graph
-        y_summary = summary_graph_type.split(",")[1:]
-        # Only filter if their y-axes match
-        if y[0].replace("spectrum", "") == y_summary[0]:
-            # Select caldataid as the x-axis representative as startvalidtime has formatting changes
-            x_selected = set(sub_dict["customdata"][-1] for sub_dict in summary_selected["points"])
-            y_selected = set(sub_dict["y"] for sub_dict in summary_selected["points"])
+        # Select caldataid as the x-axis representative as startvalidtime has formatting changes
+        x_selected = set(sub_dict["customdata"][-1] for sub_dict in summary_selected["points"])
+        y_selected = set(sub_dict["y"] for sub_dict in summary_selected["points"])
 
-            # Filter df according to selection
-            graph_df = graph_df.loc[
-                (graph_df.caldataid.isin(x_selected))
-                & (
-                    graph_df[y_summary[0]].isin(y_selected)
-                    | graph_df[y_summary[-1]].isin(y_selected)
-                )
-            ]
+        # Filter df according to selection
+        graph_df = graph_df.loc[
+            (graph_df.caldataid.isin(x_selected))
+            & (graph_df[y_summary[0]].isin(y_selected) | graph_df[y_summary[-1]].isin(y_selected))
+        ]
 
-    graph_df = graph_df[cols].applymap(lambda arr: np.array(arr.split(",")[5:-5]).astype(float))
+    graph_df.loc[:, explode_cols] = graph_df.loc[:, explode_cols].applymap(
+        lambda arr: np.array(arr.split(",")[5:-5]).astype(float)
+    )
 
-    graph_df = graph_df.explode(cols)
-    # For older pandas versions, we must explode each column individually (DSS is still using an older pandas)
-    # graph_df = pd.DataFrame({col: graph_df[[col]].explode(col).squeeze() for col in cols})
+    # graph_df = graph_df.explode(explode_cols)
+    # For older pandas v's, we must explode each column individually & deduplicate (DSS is still uses older pandas)
+    graph_df = pd.concat([graph_df[[col] + add_cols].explode(col) for col in explode_cols], axis=1)
+    graph_df = graph_df.loc[:, ~graph_df.columns.duplicated()]
 
     # Turn into GHz
     if x == "frequencyspectrum":
@@ -578,18 +617,50 @@ def update_spectrum_graph(
     fig = px.scatter(
         graph_df,
         x=x,
-        y=y,
-        labels={"variable": "Polarization", "value": "Temperature", **graph_labels},
+        y=y_spectrum,
+        labels={"variable": "Polarization", "value": "Temperature", **GRAPH_LABELS},
         render_mode="webgl",
         template="plotly_dark",
+        hover_data={col: True for col in add_cols},
     )
 
-    # Make it transparent
-    fig.update_layout(transparent_layout)
+    # Make it transparent & drawings via the drawing tool in cyan
+    fig.update_layout(
+        transparent_layout,
+        newshape=dict(line=dict(color="cyan", width=5)),
+    )
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="White")
     fig.update_yaxes(showgrid=True, rangemode="tozero", gridwidth=1, gridcolor="White")
 
     return fig
+
+
+# Prevent from being called when the app is loaded via prevent_initial_call
+@app.callback(
+    Output("download", "data"),
+    [Input("btn", "n_clicks")],
+    [
+        State("dropdown-select-uid", "value"),
+        State("antenna-select", "value"),
+        State("baseband-select", "value"),
+        State("scan-select", "value"),
+    ],
+    prevent_initial_call=True,
+)
+def generate_csv(
+    n_nlicks,
+    uid,
+    antennas,
+    basebands,
+    scans,
+):
+    out_df = df.loc[
+        (df.uid == uid)
+        & (df.antennaname.isin(antennas))
+        & (df.basebandname.isin(basebands))
+        & (df.caldataid.isin(scans))
+    ]
+    return dcc.send_data_frame(out_df.to_csv, filename="qa0_{}.csv".format(uid.strip("uid://")))
 
 
 if __name__ == "__main__":
