@@ -57,9 +57,9 @@ FROM "%s"
 WHERE startvalidtime >= '%s' AND startvalidtime <= '%s'
 """
 
-# Get min & max possible date
-min_date = EXECUTOR.query_to_df(min_date_query % (DATASET_NAME)).values.tolist()[0][0]
-max_date = EXECUTOR.query_to_df(max_date_query % (DATASET_NAME)).values.tolist()[0][0]
+
+def get_date(query=min_date_query):
+    return EXECUTOR.query_to_df(query % (DATASET_NAME)).values.tolist()[0][0]
 
 
 SUMMARY_GRAPH_OPTIONS = [
@@ -129,10 +129,11 @@ def panel_layout():
                                 children=[
                                     dcc.DatePickerRange(
                                         id="date-picker-range",
-                                        min_date_allowed=min_date,
-                                        max_date_allowed=max_date,
-                                        start_date=max_date,
-                                        end_date=max_date,
+                                        # Put the SQL queries into the layout to refresh dynamically
+                                        min_date_allowed=get_date(query=min_date_query),
+                                        max_date_allowed=get_date(query=max_date_query),
+                                        start_date=get_date(query=max_date_query),
+                                        end_date=get_date(query=max_date_query),
                                     )
                                 ],
                             ),
@@ -347,7 +348,10 @@ def full_layout():
     )
 
 
-app.layout = full_layout()
+# By not calling full_layout (i.e. no ()), we reload it whenever the browser is refreshed,
+# this will then redo the SQL queries for the min & max dates, hence allowing for a dynamic database
+# See: https://dash.plotly.com/live-updates
+app.layout = full_layout
 
 
 ### Panel callbacks ###
