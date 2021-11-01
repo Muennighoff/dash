@@ -2,6 +2,11 @@
 
 The ALMA observatory in Chile produces ~800GB of data/day. This small webapp, helps them visualize results of observations for the Astronomer on Duty (AoD).
 
+Here's an image of the deployed WebApp:
+
+
+![QA0 Alma DSS](./alma_dss_qa0.png?raw=true "QA0 @ Alma in DSS")
+
 
 #### Usage
 
